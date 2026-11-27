@@ -5,6 +5,7 @@ import { episodeCount, seriesList, type Genre, type Language, type Series } from
 import { messages } from "@/data/messages";
 
 const filters: Array<"all" | Genre> = ["all", "fam", "rom", "thr"];
+const LIKES_STORAGE_KEY = "microdrama:viewer-likes:v1";
 const gradient = (item: Series) => "linear-gradient(160deg," + item.colors[0] + "," + item.colors[1] + ")";
 
 export default function MicroDramaApp() {
@@ -15,6 +16,7 @@ export default function MicroDramaApp() {
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [likes, setLikes] = useState<Record<string, boolean>>({});
+  const [likesLoaded, setLikesLoaded] = useState(false);
   const [hintVisible, setHintVisible] = useState(false);
   const [flash, setFlash] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,6 +28,35 @@ export default function MicroDramaApp() {
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    try {
+      const storedLikes = window.localStorage.getItem(LIKES_STORAGE_KEY);
+      if (!storedLikes) return;
+
+      const parsedLikes: unknown = JSON.parse(storedLikes);
+      if (!parsedLikes || typeof parsedLikes !== "object" || Array.isArray(parsedLikes)) return;
+
+      const validLikes = Object.fromEntries(
+        Object.entries(parsedLikes).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
+      );
+      setLikes(validLikes);
+    } catch {
+      // Browser storage may be unavailable or contain invalid data.
+    } finally {
+      setLikesLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!likesLoaded) return;
+
+    try {
+      window.localStorage.setItem(LIKES_STORAGE_KEY, JSON.stringify(likes));
+    } catch {
+      // Browser storage may be unavailable.
+    }
+  }, [likes, likesLoaded]);
 
   useEffect(() => {
     if (!current) return;
